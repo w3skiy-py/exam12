@@ -1,72 +1,99 @@
-import flask 
-from flask import render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 
-app = flask.Flask(__name__)
+app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:qwerty@127.0.0.1:5432/examflask'
+app.config['SECRET_KEY'] = 'some_secret_key'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
-# Таблички с БД
+CURRENT_USER_ID = 2
+
+
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), nullable=False)
+    applications = db.relationship('Application', backref='user', lazy=True)
+
 
 class Course(db.Model):
     __tablename__ = 'courses'
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100))
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    applications = db.relationship('Application', backref='course', lazy=True)
+
 
 class Application(db.Model):
     __tablename__ = 'applications'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer)
-    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     message = db.Column(db.Text)
-    course = db.relationship('Course')
-    review = db.relationship('Review', backref='application', uselist=False)
+
 
 class Review(db.Model):
     __tablename__ = 'reviews'
     id = db.Column(db.Integer, primary_key=True)
-    application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), unique=True, nullable=False)
+    application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
     rating = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    application = db.relationship('Application', backref=db.backref('review', uselist=False))
 
-# Роуты с страничками
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
+@app.route('/')
+def courses():
+    all_courses = Course.query.all()
+    return render_template('courses.html', courses=all_courses)
+
+
+@app.route('/course/<int:course_id>', methods=['GET', 'POST'])
+def course_detail(course_id):
+    course = Course.query.get_or_404(course_id)
+    application = Application.query.filter_by(
+        user_id=CURRENT_USER_ID,
+        course_id=course_id
+    ).first()
+
+    error = None
+
     if request.method == 'POST':
-        new_app = Application(
-            user_id=1,
-            course_id=request.form.get('course_id'),
-            message=request.form.get('message')
-        )
-        db.session.add(new_app)
-        db.session.commit()
-        return redirect(url_for('user_page'))
-    
-    courses = Course.query.all()
-    return render_template('courses.html', courses=courses)
+        if application:
+            error = 'Вы уже подали заявку на этот курс.'
+        else:
+            reason = request.form.get('reason')
 
-@app.route('/user')
-def user_page():
-    my_apps = Application.query.filter_by(user_id=1).all()
-    return render_template('user.html', applications=my_apps)
+            new_application = Application(
+                user_id=CURRENT_USER_ID,
+                course_id=course_id,
+                message=reason
+            )
+            db.session.add(new_application)
+            db.session.commit()
 
-@app.route('/add_review/<int:application_id>', methods=['POST'])
-def add_review(application_id):
-    rating = request.form.get('rating')
-    comment = request.form.get('comment')
+            flash('Заявка успешно отправлена!', 'success')
+            return redirect(url_for('course_detail', course_id=course_id))
 
-    if rating and comment:
-        new_review = Review(
-            application_id=application_id,
-            rating=int(rating),
-            comment=comment
-        )
-        db.session.add(new_review)
-        db.session.commit()
+    reviews = Review.query.join(Application).filter(Application.course_id == course_id).all()
 
-    return redirect(url_for('user_page'))
+    return render_template(
+        'course_detail.html',
+        course=course,
+        reviews=reviews,
+        application=application,
+        error=error
+    )
+
+
+@app.route('/my_applications')
+def my_applications():
+    apps = Application.query.filter_by(user_id=CURRENT_USER_ID).all()
+    return render_template('user.html', applications=apps)
+
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)

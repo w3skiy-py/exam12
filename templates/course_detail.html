@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ course.title }}</title>
+</head>
+<body>
+    <h1>{{ course.title }}</h1>
+    <p>{{ course.description }}</p>
+
+    <hr>
+
+    <h3>Подать заявку</h3>
+
+    {% if application %}
+        <p style="color: green;">Вы уже подали заявку на этот курс.</p>
+        <p><strong>Ваше сообщение:</strong> {{ application.message }}</p>
+    {% else %}
+        {% if error %}
+            <p style="color: red;"><strong>{{ error }}</strong></p>
+        {% endif %}
+
+        <form action="{{ url_for('course_detail', course_id=course.id) }}" method="POST">
+            <label>Ваше сообщение:</label><br>
+            <textarea name="reason" rows="4" cols="40" required></textarea><br><br>
+            <button type="submit">Подать заявку</button>
+        </form>
+    {% endif %}
+
+    <hr>
+
+    <h3>Отзывы:</h3>
+    {% for review in reviews %}
+        <p>
+            <strong>{{ review.application.user.username }}:</strong>
+            Оценка: {{ review.rating }}/5 <br>
+            {{ review.comment }}
+        </p>
+    {% else %}
+        <p>Отзывов пока нет.</p>
+    {% endfor %}
+
+    <br>
+    <p><a href="{{ url_for('courses') }}">Назад к списку курсов</a></p>
+</body>
+</html>

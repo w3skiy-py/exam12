@@ -4,47 +4,27 @@
     <title>Мои заявки</title>
 </head>
 <body>
-    <h1>Мои заявки</h1>
-    <a href="{{ url_for('index') }}">Назад к курсам</a>
-    <hr>
+    <h1>Личный кабинет</h1>
+    <h2>Мои поданные заявки:</h2>
 
-    {% if not applications %}
-        <p>Вы еще не подали ни одной заявки.</p>
-    {% else %}
-        <ul>
+    {% if applications %}
+        <table border="1" cellpadding="8">
+            <tr>
+                <th>Курс</th>
+                <th>Моё сообщение</th>
+            </tr>
             {% for app in applications %}
-            <li style="margin-bottom: 20px; list-style-type: none; border-bottom: 1px solid #ccc; padding-bottom: 10px;">
-                <strong>Курс:</strong> {{ app.course.title }} <br>
-                <strong>Ваш комментарий к заявке:</strong> {{ app.message }} <br>
-                
-                <div style="margin-top: 10px; background-color: #f9f9f9; padding: 10px;">
-                    {% if app.review %}
-                        <p><strong>Ваша оценка:</strong> {{ app.review.rating }} / 5</p>
-                        <p><strong>Ваш отзыв:</strong> {{ app.review.comment }}</p>
-                    {% else %}
-                        <p><strong>Оставить отзыв:</strong></p>
-                        <form method="POST" action="{{ url_for('add_review', application_id=app.id) }}">
-                            <label>Оценка:</label>
-                            <select name="rating" required>
-                                <option value="5">5</option>
-                                <option value="4">4</option>
-                                <option value="3">3</option>
-                                <option value="2">2</option>
-                                <option value="1">1</option>
-                            </select>
-                            <br><br>
-
-                            <label>Комментарий:</label><br>
-                            <textarea name="comment" rows="3" cols="40" placeholder="Напишите ваше мнение о курсе..." required></textarea>
-                            <br><br>
-
-                            <button type="submit">Опубликовать отзыв</button>
-                        </form>
-                    {% endif %}
-                </div>
-            </li>
+            <tr>
+                <td>{{ app.course.title }}</td>
+                <td>{{ app.message }}</td>
+            </tr>
             {% endfor %}
-        </ul>
+        </table>
+    {% else %}
+        <p>Вы еще не подали ни одной заявки.</p>
     {% endif %}
+
+    <br>
+    <a href="{{ url_for('courses') }}">Вернуться к курсам</a>
 </body>
 </html>
